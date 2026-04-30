@@ -4,3 +4,4 @@ mode = "symlink"
 [data]
   enable_mozilla = {{ promptBoolOnce . "enable_mozilla" "Enable Mozilla configuration" }}
   enable_watchman = {{ promptBoolOnce . "enable_watchman" "Enable Watchman" }}
+  is_unraid_vm = {{ output "sh" "-c" "systemd-detect-virt 2>/dev/null | grep -q kvm && echo true || echo false" | trim | eq "true" }}
