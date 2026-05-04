@@ -14,6 +14,7 @@ Run without root:
     newgrp i2c
 
 Usage:
+    switch-input           # switch to default input (dp for mozilla, usbc otherwise)
     switch-input dp
     switch-input hdmi1
     switch-input hdmi2
@@ -52,9 +53,14 @@ def send(bus, lo):
     subprocess.run(cmd, check=True)
 
 
-if len(sys.argv) != 2 or sys.argv[1] not in INPUTS:
+if len(sys.argv) == 1:
+    bus = find_lg_bus()
+    target = {{ if .enable_mozilla }}"dp"{{ else }}"usbc"{{ end }}
+    send(bus, INPUTS[target])
+    print(target)
+elif len(sys.argv) == 2 and sys.argv[1] in INPUTS:
+    bus = find_lg_bus()
+    send(bus, INPUTS[sys.argv[1]])
+else:
     print(f"Usage: {sys.argv[0]} [{' | '.join(INPUTS)}]")
     sys.exit(1)
-
-
-send(find_lg_bus(), INPUTS[sys.argv[1]])
