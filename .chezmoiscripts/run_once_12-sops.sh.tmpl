@@ -1,0 +1,23 @@
+#!/bin/bash
+set -euo pipefail
+
+{{ if not .enable_mozilla -}}
+exit 0
+{{ end -}}
+
+if command -v sops &> /dev/null; then
+  exit 0
+fi
+
+LATEST=$(curl -fsSL "https://api.github.com/repos/getsops/sops/releases/latest" | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+ARCH=$(uname -m)
+case "$ARCH" in
+  x86_64) ARCH="amd64" ;;
+  aarch64) ARCH="arm64" ;;
+esac
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+
+mkdir -p ~/.local/bin
+curl -fsSL "https://github.com/getsops/sops/releases/download/v${LATEST}/sops-v${LATEST}.${OS}.${ARCH}" \
+  -o ~/.local/bin/sops
+chmod +x ~/.local/bin/sops
