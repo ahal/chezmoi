@@ -1,0 +1,12 @@
+{
+  "theme": "dark",
+  "model": "opusplan",
+  "permissions": {
+    "allow": [
+      "Bash(jj log *)",
+      "Bash(jj show *)",
+      "Bash(jj diff *)",
+      "Bash(jj status)"
+    ]
+  }
+}
