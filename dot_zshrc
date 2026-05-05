@@ -52,7 +52,7 @@ bindkey -M vicmd 'j' history-substring-search-down
 
 # source
 setopt PROMPT_SUBST
-source "${HOME}/bin/scm-prompt.sh"
+source "${HOME}/.local/bin/scm-prompt.sh"
 #source `which mozconfigwrapper.sh`
 
 # tab completion
