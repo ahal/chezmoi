@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+    echo "Usage: clone <url|owner/repo>" >&2
+    exit 1
+fi
+
+input="$1"
+
+if [[ "$input" =~ ^https?:// ]] || [[ "$input" =~ ^git@ ]]; then
+    url="$input"
+    if [[ "$url" =~ github\.com[:/]([^/]+)/([^/.]+)(\.git)?$ ]]; then
+        owner="${BASH_REMATCH[1]}"
+        repo="${BASH_REMATCH[2]}"
+    else
+        echo "Error: Could not parse owner/repo from URL: $url" >&2
+        exit 1
+    fi
+else
+    if [[ "$input" != */* ]]; then
+        echo "Error: Input must be a URL or <owner>/<repo>" >&2
+        exit 1
+    fi
+    owner="${input%%/*}"
+    repo="${input#*/}"
+    repo="${repo%.git}"
+    url="https://github.com/${owner}/${repo}"
+fi
+
+dest="$HOME/dev/${repo}"
+
+jj git clone --colocate "$url" "$dest"
+cd "$dest"
+
+ssh_url="git@github.com:${owner}/${repo}.git"
+jj git remote set-url origin --push "$ssh_url"
+
+if [[ "$owner" == "ahal" ]]; then
+    jj config set --repo git.fetch '["origin"]'
+    jj config set --repo git.push '"origin"'
+else
+    if [[ "$url" =~ github\.com ]]; then
+        ahal_http_url="https://github.com/ahal/${repo}"
+        if git ls-remote "$ahal_http_url" HEAD &>/dev/null; then
+            ahal_ssh_url="git@github.com:ahal/${repo}.git"
+            jj git remote add ahal "$ahal_http_url"
+            jj git remote set-url ahal --push "$ahal_ssh_url"
+        fi
+    fi
+fi
