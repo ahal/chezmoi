@@ -53,7 +53,6 @@ bindkey -M vicmd 'j' history-substring-search-down
 # source
 setopt PROMPT_SUBST
 source "${HOME}/.local/bin/scm-prompt.sh"
-#source `which mozconfigwrapper.sh`
 
 # tab completion
 # pip zsh completion
@@ -71,12 +70,6 @@ fpath+="${HOME}/.zfunc"
 fpath+="${HOME}/.zgen/zsh-users/zsh-completions-master/src"
 
 autoload -U compinit && compinit
-# base16
-#BASE16_SHELL=$HOME/.config/base16-shell/
-#[ -n "$PS1" ] && [ -s $BASE16_SHELL/profile_helper.sh ] && source "$BASE16_SHELL/profile_helper.sh"
-#base16_chalk
-#alias reset="reset && base16_chalk"
-#alias clear="clear && base16_chalk"
 
 # functions
 function killall {
@@ -126,9 +119,6 @@ function venv {
 # fnm
 eval "$(fnm env --use-on-cd --shell zsh)"
 
-# start watchman
-# watchman version > /dev/null 2>&1
-
 # neovim
 if [ $NVIM_LISTEN_ADDRESS ]; then
     export EDITOR="nvr -cc split --remote-wait"
@@ -143,7 +133,6 @@ done
 . "$HOME/.cargo/env"
 
 eval "$(direnv hook zsh)"
-#eval "$(starship init zsh)"
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
