@@ -1,5 +1,5 @@
 sourceDir = {{ .chezmoi.sourceDir | quote }}
-mode = "symlink"
+mode = "file"
 
 [data]
   enable_mozilla = {{ promptBoolOnce . "enable_mozilla" "Enable Mozilla configuration" }}
