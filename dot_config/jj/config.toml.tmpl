@@ -91,20 +91,9 @@ log = "present(@) | trunk() | ancestors(immutable_heads().. ~ ::untracked_remote
 [template-aliases]
 "format_short_signature(signature)" = 'signature.email().local()'
 "link(target, label)" = 'raw_escape_sequence("\x1b]8;;" ++ target ++ "\x1b\\") ++ label ++ raw_escape_sequence("\x1b]8;;\x1b\\")'
-"slugify(str)" = '''
-  truncate_end(
-    65,
-    str.first_line()
-      .replace(regex:'[^[[:alnum:]].]', '-')
-      .replace(regex:'-{2,}', '-')
-      .replace(regex:'\.{2,}', '.')
-      .replace(regex:'(^-+|-+$)', '')
-      .lower()
-  )
-'''
 
 [templates]
-git_push_bookmark = '"ahal/" ++ slugify(description) ++ "/" ++ change_id.short()'
+git_push_bookmark = '"ahal/" ++ change_id.short()'
 
 [ui]
 default-command = "shortlog"
