@@ -29,6 +29,40 @@ register-snapshot-trigger = false
 heads = ["log", "-r", "visible_heads() & mutable()", "-T", "builtin_log_compact", "--no-graph"]
 shortlog = ["log", "--limit=12"]
 tug = ["bookmark", "move", "--from", "heads(::@- & bookmarks())", "--to", "latest(::@ ~ empty())"]
+remote-add = ["util", "exec", "--", "bash", "-c", """
+if [ -z "$1" ] || [ -z "$2" ]; then
+    echo "Usage: jj remote-add <name> <owner/slug>"
+    exit 1
+fi
+set -euo pipefail
+jj git remote add "$1" "https://github.com/$2"
+jj git remote set-url "$1" --push "git@github.com:$2.git"
+""", ""]
+clone-repo = ["util", "exec", "--", "bash", "-c", """
+set -euo pipefail
+if [[ $# -ne 1 ]] || [[ "$1" != */* ]]; then
+    echo "Usage: jj clone-repo <owner/repo>" >&2
+    exit 1
+fi
+owner="${1%%/*}"
+repo="${1#*/}"
+url="https://github.com/${owner}/${repo}"
+dest="$HOME/dev/${repo}"
+jj git clone --colocate "$url" "$dest"
+cd "$dest"
+jj git remote set-url origin --push "git@github.com:${owner}/${repo}.git"
+if [[ "$owner" == "ahal" ]]; then
+    jj config set --repo git.fetch '["origin"]'
+    jj config set --repo git.push '"origin"'
+else
+    if [[ "$url" =~ github\\.com ]]; then
+        ahal_http_url="https://github.com/ahal/${repo}"
+        if git ls-remote "$ahal_http_url" HEAD &>/dev/null; then
+            jj remote-add ahal "ahal/${repo}"
+        fi
+    fi
+fi
+""", ""]
 pull = ["util", "exec", "--", "bash", "-c", """
 if [ -z "$1" ]; then
     echo "missing branch"
