@@ -1,0 +1,92 @@
+---
+name: file-bug
+description: File a GitHub issue{{ if .enable_mozilla }} or Mozilla Bugzilla bug{{ end }}
+---
+
+## Determine destination
+
+{{ if .enable_mozilla -}}
+- GitHub issue: if the repo is on GitHub or the user says "issue"
+- Bugzilla bug: if this is Mozilla work or the user says "bug"
+
+If ambiguous, ask.
+{{ else -}}
+File a GitHub issue in the appropriate repo.
+{{ end }}
+## Gather required fields
+
+Before filing, collect:
+
+**GitHub issue:**
+- Title (one line, imperative)
+- Body (what's broken or needed, steps to reproduce if applicable, expected vs actual behavior)
+- Labels, milestone, assignee (optional -- skip if not obvious)
+- Repo (infer from current directory via `gh repo view`, or ask)
+{{ if .enable_mozilla }}
+**Bugzilla bug:**
+- Product and Component (ask the user or look it up from context)
+- Summary (one line)
+- Description (steps to reproduce, expected vs actual, environment details)
+- Type: `defect`, `enhancement`, or `task`
+- Severity: `S1`-`S4` or `N/A` for enhancements
+- Priority: `P1`-`P5` or `--` if unknown
+{{ end }}
+If any required field is missing, ask before filing.
+
+## Preview before submitting
+
+Before running any `gh` or `curl` command, show the user a formatted preview of what will be filed:
+
+```
+Title: ...
+{{ if .enable_mozilla }}Type: issue | bug
+{{ end }}Body:
+---
+...
+---
+```
+
+Wait for explicit confirmation before proceeding. If the user requests changes, update and show the preview again.
+
+## Writing style
+
+- No emojis or em-dashes
+- Title: concise, imperative, no trailing punctuation
+- Description: brief and informative -- state the problem, context, and expected behavior. No filler.
+
+## File the issue{{ if .enable_mozilla }}/bug{{ end }}
+
+**GitHub:**
+```bash
+gh issue create --title "..." --body "..." [--label "..."] [--repo owner/repo]
+```
+
+For multiline body use a heredoc:
+```bash
+gh issue create --title "..." --body "$(cat <<'EOF'
+...
+EOF
+)"
+```
+{{ if .enable_mozilla }}
+**Bugzilla** (requires `BUGZILLA_API_KEY` env var):
+```bash
+curl -s -X POST https://bugzilla.mozilla.org/rest/bug \
+  -H "Content-Type: application/json" \
+  -d '{
+    "api_key": "'"$BUGZILLA_API_KEY"'",
+    "product": "...",
+    "component": "...",
+    "summary": "...",
+    "description": "...",
+    "type": "defect",
+    "severity": "S3",
+    "priority": "--"
+  }' | python3 -m json.tool
+```
+
+If `BUGZILLA_API_KEY` is not set, tell the user to get one at https://bugzilla.mozilla.org/userprefs.cgi?tab=apikey and export it.
+{{ end }}
+## After filing
+
+Report the URL of the created issue{{ if .enable_mozilla }}/bug{{ end }}.{{ if .enable_mozilla }} For Bugzilla the response contains `id` -- construct the URL as `https://bugzilla.mozilla.org/show_bug.cgi?id=<id>`.{{ end }}
