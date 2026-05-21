@@ -35,7 +35,7 @@ If any required field is missing, ask before filing.
 
 ## Preview before submitting
 
-Before running any `gh` or `curl` command, show the user a formatted preview of what will be filed:
+Before running any `gh` or `bugzilla` command, show the user a formatted preview of what will be filed:
 
 ```
 Title: ...
@@ -53,6 +53,7 @@ Wait for explicit confirmation before proceeding. If the user requests changes, 
 - No emojis or em-dashes
 - Title: concise, imperative, no trailing punctuation
 - Description: brief and informative -- state the problem, context, and expected behavior. No filler.
+- Do not word wrap the description. Use newlines only for actual paragraph breaks.
 
 ## File the issue{{ if .enable_mozilla }}/bug{{ end }}
 
@@ -69,24 +70,18 @@ EOF
 )"
 ```
 {{ if .enable_mozilla }}
-**Bugzilla** (requires `BUGZILLA_API_KEY` env var):
+**Bugzilla** (uses `python-bugzilla`):
 ```bash
-curl -s -X POST https://bugzilla.mozilla.org/rest/bug \
-  -H "Content-Type: application/json" \
-  -d '{
-    "api_key": "'"$BUGZILLA_API_KEY"'",
-    "product": "...",
-    "component": "...",
-    "summary": "...",
-    "description": "...",
-    "type": "defect",
-    "severity": "S3",
-    "priority": "--"
-  }' | python3 -m json.tool
+bugzilla new \
+  --product "..." \
+  --component "..." \
+  --summary "..." \
+  --comment "..." \
+  --bug-type defect \
+  --severity S3
 ```
 
-If `BUGZILLA_API_KEY` is not set, tell the user to get one at https://bugzilla.mozilla.org/userprefs.cgi?tab=apikey and export it.
 {{ end }}
 ## After filing
 
-Report the URL of the created issue{{ if .enable_mozilla }}/bug{{ end }}.{{ if .enable_mozilla }} For Bugzilla the response contains `id` -- construct the URL as `https://bugzilla.mozilla.org/show_bug.cgi?id=<id>`.{{ end }}
+Report the URL of the created issue{{ if .enable_mozilla }}/bug{{ end }}.{{ if .enable_mozilla }} `bugzilla new` prints the URL directly on success.{{ end }}
