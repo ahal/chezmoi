@@ -72,6 +72,18 @@ set -euo pipefail
 jj git fetch -b $1
 jj rebase -s "at_operation(@-, $1+) & mutable()" -d $1
 """, ""]
+push-new = ["util", "exec", "--", "bash", "-c", """
+set -euo pipefail
+diff=$(jj diff --from 'trunk()' --to @)
+change_id=$(jj log -r @ --no-graph -T 'change_id.short()')
+raw=$(printf '%s' "$diff" | claude -p 'Output ONLY a 2-3 word hyphenated branch name (lowercase letters and hyphens only) describing these code changes. Nothing else.' --model claude-haiku-4-5-20251001 || true)
+branch_slug=$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]' | tr -s ' _' '-' | sed 's/[^a-z0-9-]//g;s/--*/-/g;s/^-//;s/-$//')
+[ -z "$branch_slug" ] && branch_slug="$change_id"
+bookmark="ahal/${branch_slug}"
+echo "Creating bookmark: ${bookmark}"
+jj bookmark set "${bookmark}" -r @
+jj git push --bookmark "${bookmark}"
+""", ""]
 
 [colors]
 bookmarks = "green"
