@@ -1,0 +1,7 @@
+{{ if .enable_mozilla -}}
+["review-taskgraph"]
+    type = "archive"
+    url = "https://github.com/JohanLorenzo/claude-taskcluster-process/archive/refs/heads/main.tar.gz"
+    stripComponents = 3
+    include = ["claude-taskcluster-process-main/skills/review-taskgraph/**"]
+{{ end -}}
