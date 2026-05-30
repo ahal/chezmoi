@@ -1,6 +1,14 @@
 # Repo infrastructure
 README.md
 
+{{ if not (has "anthropic" .llm_providers) }}
+.claude
+{{ end }}
+
+{{ if not (has "openai" .llm_providers) }}
+.codex
+{{ end }}
+
 {{ if not .enable_mozilla }}
 .mozbuild
 .mozconfigs
