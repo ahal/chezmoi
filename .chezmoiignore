@@ -2,8 +2,12 @@
 README.md
 
 {{ if not .enable_mozilla }}
-dot_mozbuild
-dot_mozconfigs
+.mozbuild
+.mozconfigs
+.config/python-bugzilla/bugzillarc
 {{ else }}
-dot_config/environment.d/mangohud.conf
+.config/environment.d/mangohud.conf
+{{ if not (hasKey . "bugzilla_api_key") }}
+.config/python-bugzilla/bugzillarc
+{{ end }}
 {{ end }}
