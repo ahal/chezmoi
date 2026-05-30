@@ -1,0 +1,10 @@
+#!/bin/bash
+set -euo pipefail
+
+{{ if has "openai" .llm_providers -}}
+if ! command -v codex &> /dev/null; then
+  export PATH="$HOME/.local/bin:$PATH"
+  eval "$(fnm env --shell bash)"
+  npm install -g @openai/codex
+fi
+{{ end -}}

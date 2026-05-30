@@ -10,6 +10,18 @@ while tmux kill-pane -t "$session:0.1" 2>/dev/null; do :; done
 tmux split-window -t "$session:0.0" -h -c "$dir"
 tmux resize-pane -t "$session:0.1" -x {{ if eq .chezmoi.osRelease.id "ubuntu" }}10%{{ else }}40%{{ end }}
 tmux split-window -t "$session:0.1" -v -c "$dir"
-tmux send-keys -t "$session:0.1" 'claude --continue' Enter
+{{ $llm_command := "" -}}
+{{ range .llm_providers -}}
+{{ if eq . "anthropic" -}}
+{{ $llm_command = "claude" -}}
+{{ break -}}
+{{ else if eq . "openai" -}}
+{{ $llm_command = "codex" -}}
+{{ break -}}
+{{ end -}}
+{{ end -}}
+{{ if $llm_command -}}
+tmux send-keys -t "$session:0.1" '{{ $llm_command }}' Enter
+{{ end -}}
 tmux select-pane -t "$session:0.0"
 tmux send-keys -t "$session:0.0" 'nvim' Enter

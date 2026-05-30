@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+{{ if has "anthropic" .llm_providers -}}
 if ! command -v claude &> /dev/null; then
   curl -fsSL https://claude.ai/install.sh | bash
 fi
+{{ end -}}

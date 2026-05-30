@@ -4,7 +4,8 @@ mode = "file"
 [data]
   enable_mozilla = {{ promptBoolOnce . "enable_mozilla" "Enable Mozilla configuration" }}
   enable_watchman = {{ promptBoolOnce . "enable_watchman" "Enable Watchman" }}
+  llm_providers = {{ promptMultichoiceOnce . "llm_providers" "anthropic" (list "anthropic" "openai") | toJson }}
+  is_unraid_vm = {{ output "sh" "-c" "systemd-detect-virt 2>/dev/null | grep -q kvm && echo true || echo false" | trim | eq "true" }}
   {{ if .enable_mozilla -}}
   bugzilla_api_key = {{ promptStringOnce . "bugzilla_api_key" "Bugzilla API key (from https://bugzilla.mozilla.org/userprefs.cgi?tab=apikey)" | quote }}
   {{- end }}
-  is_unraid_vm = {{ output "sh" "-c" "systemd-detect-virt 2>/dev/null | grep -q kvm && echo true || echo false" | trim | eq "true" }}
