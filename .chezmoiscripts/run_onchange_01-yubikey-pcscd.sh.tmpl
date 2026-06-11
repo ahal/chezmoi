@@ -1,0 +1,65 @@
+#!/bin/bash
+set -euo pipefail
+
+{{ if eq .chezmoi.osRelease.id "fedora" -}}
+sudo install -d -m 0755 /etc/systemd/system/pcscd.service.d /etc/systemd/system /etc/udev/rules.d
+sudo install -d -m 0755 /etc/polkit-1/rules.d
+
+sudo tee /etc/systemd/system/pcscd.service.d/10-after-polkit.conf >/dev/null <<'EOF'
+[Unit]
+After=polkit.service
+EOF
+
+sudo tee /etc/polkit-1/rules.d/99-pcscd-wheel.rules >/dev/null <<'EOF'
+polkit.addRule(function(action, subject) {
+    if ((action.id == "org.debian.pcsc-lite.access_pcsc" ||
+         action.id == "org.debian.pcsc-lite.access_card") &&
+        subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+});
+EOF
+
+sudo tee /etc/systemd/system/yubikey-pcscd-refresh.service >/dev/null <<'EOF'
+[Unit]
+Description=Refresh pcscd after YubiKey hotplug
+After=pcscd.socket polkit.service
+Requires=pcscd.socket polkit.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl restart pcscd.service
+EOF
+
+sudo tee /etc/systemd/system/pcscd-late-restart.service >/dev/null <<'EOF'
+[Unit]
+Description=Restart pcscd after boot has settled
+After=graphical.target pcscd.socket polkit.service
+Requires=pcscd.socket polkit.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl restart pcscd.service
+EOF
+
+sudo tee /etc/systemd/system/pcscd-late-restart.timer >/dev/null <<'EOF'
+[Unit]
+Description=Restart pcscd after boot has settled
+
+[Timer]
+OnBootSec=45s
+Unit=pcscd-late-restart.service
+
+[Install]
+WantedBy=timers.target
+EOF
+
+sudo tee /etc/udev/rules.d/99-yubikey-pcscd.rules >/dev/null <<'EOF'
+ACTION=="add|change", SUBSYSTEM=="usb", ATTR{idVendor}=="1050", TAG+="systemd", ENV{SYSTEMD_WANTS}+="yubikey-pcscd-refresh.service"
+EOF
+
+sudo systemctl daemon-reload
+sudo udevadm control --reload
+sudo systemctl enable --now pcscd-late-restart.timer
+sudo systemctl restart pcscd.service
+{{ end -}}
