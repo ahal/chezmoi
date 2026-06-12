@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 
-PATH="$HOME/.config/fzf/bin:$PATH"
+PATH="$HOME/.config/fzf/bin:$HOME/.local/bin:$PATH"
+tmux_layout="$HOME/.local/bin/tmux-layout"
 
 if [[ $# -eq 1 ]]; then
     root_dir=~
     selected=$1
 else
     root_dir=~/dev
-    selected=$(find $root_dir/ -mindepth 1 -maxdepth 1 -type d | xargs -L1 -I{} basename "{}" | sort | fzf)
+    selected=$(find "$root_dir/" -mindepth 1 -maxdepth 1 -type d | xargs -L1 -I{} basename "{}" | sort | fzf)
 fi
 
 if [[ -z $selected ]]; then
@@ -15,20 +16,24 @@ if [[ -z $selected ]]; then
 fi
 
 tmux_running=$(pgrep tmux)
-selected_root=$root_dir/$selected
+selected_root="$root_dir/$selected"
 
 if [[ -z $TMUX ]] && [[ -z $tmux_running ]]; then
-    tmux new-session -ds $selected -c $selected_root
-    tmux-layout $selected $selected_root
-    tmux attach-session -t $selected
+    tmux new-session -ds "$selected" -c "$selected_root"
+    "$tmux_layout" "$selected" "$selected_root"
+    tmux attach-session -t "$selected"
     #base16_chalk
     exit 0
 fi
 
-if ! tmux has-session -t=$selected 2> /dev/null; then
-    tmux new-session -ds $selected -c $selected_root
-    tmux-layout $selected $selected_root
+if ! tmux has-session -t="$selected" 2> /dev/null; then
+    tmux new-session -ds "$selected" -c "$selected_root"
+    "$tmux_layout" "$selected" "$selected_root"
 fi
 
-tmux switch-client -t $selected
+if [[ -z $TMUX ]]; then
+    tmux attach-session -t "$selected"
+else
+    tmux switch-client -t "$selected"
+fi
 #base16_chalk
