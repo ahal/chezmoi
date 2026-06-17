@@ -19,3 +19,7 @@ README.md
 .config/python-bugzilla/bugzillarc
 {{ end }}
 {{ end }}
+
+{{ if or (not .enable_mozilla) (not (stat (joinPath .chezmoi.homeDir "dev/firefox"))) }}
+dev/firefox
+{{ end }}
