@@ -1,6 +1,10 @@
 ---
 name: file-bug
 description: File a GitHub issue{{ if .enable_mozilla }} or Mozilla Bugzilla bug{{ end }}
+{{ if .enable_mozilla -}}
+allowed-tools:
+  - Bash(python3 ~/.claude/skills/file-bug/file-bug.py:*)
+{{ end -}}
 ---
 
 ## Determine destination
@@ -24,29 +28,17 @@ Before filing, collect:
 - Repo (infer from current directory via `gh repo view`, or ask)
 {{ if .enable_mozilla }}
 **Bugzilla bug:**
-- Product and Component (ask the user or look it up from context)
+- Product and Component (ask the user or infer from context — e.g. repo name, description, or existing bugs)
 - Summary (one line)
 - Description (steps to reproduce, expected vs actual, environment details)
-- Type: `defect`, `enhancement`, or `task`
+- Type: `defect`, `enhancement`, or `task`:
+  - `defect` — shipping software is not behaving as expected (regression, crash, error)
+  - `enhancement` — new feature or changed behavior
+  - `task` — config change, refactor, tooling, tests, docs; no user-facing behavior change
 - Severity: `S1`-`S4` or `N/A` for enhancements
 - Priority: `P1`-`P5` or `--` if unknown
 {{ end }}
 If any required field is missing, ask before filing.
-
-## Preview before submitting
-
-Before running any `gh` or `bugzilla` command, show the user a formatted preview of what will be filed:
-
-```
-Title: ...
-{{ if .enable_mozilla }}Type: issue | bug
-{{ end }}Body:
----
-...
----
-```
-
-Wait for explicit confirmation before proceeding. If the user requests changes, update and show the preview again.
 
 ## Writing style
 
@@ -57,7 +49,7 @@ Wait for explicit confirmation before proceeding. If the user requests changes, 
 
 ## File the issue{{ if .enable_mozilla }}/bug{{ end }}
 
-**GitHub:**
+**GitHub:** Show the user a formatted preview and wait for explicit confirmation before running:
 ```bash
 gh issue create --title "..." --body "..." [--label "..."] [--repo owner/repo]
 ```
@@ -70,18 +62,19 @@ EOF
 )"
 ```
 {{ if .enable_mozilla }}
-**Bugzilla** (uses `python-bugzilla`):
+**Bugzilla** — open a prefilled form in the browser for the user to review and submit:
 ```bash
-bugzilla new \
-  --product "..." \
-  --component "..." \
-  --summary "..." \
-  --comment "..." \
-  --bug-type defect \
-  --severity S3
+python3 ~/.claude/skills/file-bug/file-bug.py \
+  product="..." component="..." \
+  bug_type="..." short_desc="..." comment="..."
 ```
+- Write `short_desc` and `comment` as plain text; wrap code identifiers in backticks.
+- Any `enter_bug.cgi` field works: `blocked=<bug>`, `dependson=<bug>`, `see_also=<url>`, etc.
+- This only opens a prefilled form; it never submits the bug itself.
 
 {{ end }}
 ## After filing
 
-Report the URL of the created issue{{ if .enable_mozilla }}/bug{{ end }}.{{ if .enable_mozilla }} `bugzilla new` prints the URL directly on success.{{ end }}
+**GitHub:** Report the URL of the created issue.{{ if .enable_mozilla }}
+
+**Bugzilla:** The user reviews the prefilled form and submits it under their own account. Ask them to share the bug URL or number once filed.{{ end }}
