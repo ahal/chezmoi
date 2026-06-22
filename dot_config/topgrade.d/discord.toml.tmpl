@@ -1,0 +1,4 @@
+{{ if and (eq .chezmoi.osRelease.id "fedora") (not .enable_mozilla) -}}
+[commands]
+"Discord RPM" = "~/.local/bin/update-discord-rpm"
+{{ end -}}

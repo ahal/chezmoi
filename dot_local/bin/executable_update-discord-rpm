@@ -1,0 +1,18 @@
+#!/bin/bash
+set -euo pipefail
+
+url="https://discord.com/api/download?platform=linux&format=rpm"
+tmp="$(mktemp --suffix=.rpm)"
+trap 'rm -f "$tmp"' EXIT
+
+curl -fsSL "$url" -o "$tmp"
+
+candidate=$(rpm -qp --qf '%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH}\n' "$tmp")
+installed=$(rpm -q --qf '%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH}\n' discord 2> /dev/null || true)
+
+if [ "$installed" = "$candidate" ]; then
+  echo "Discord is already current: $installed"
+  exit 0
+fi
+
+sudo dnf install -y "$tmp"
