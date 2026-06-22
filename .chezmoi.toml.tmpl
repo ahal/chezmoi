@@ -1,6 +1,10 @@
 sourceDir = {{ .chezmoi.sourceDir | quote }}
 mode = "file"
 
+[update]
+  command = "jj"
+  args = ["pull", "main"]
+
 [data]
   enable_mozilla = {{ promptBoolOnce . "enable_mozilla" "Enable Mozilla configuration" }}
   enable_watchman = {{ promptBoolOnce . "enable_watchman" "Enable Watchman" }}
