@@ -108,8 +108,6 @@ bindkey '^L' clear-scrollback-buffer
 # environment variables
 export EDITOR="nvim"
 
-export DISPLAY=localhost:0.0
-
 # uv
 
 function venv {

@@ -1,0 +1,197 @@
+# This file is managed by chezmoi. Codex writes ad-hoc approvals to
+# default.rules; move only reviewed rules here.
+
+prefix_rule(
+    pattern=["btrfs", "filesystem", ["usage", "df"]],
+    decision="allow",
+    justification="Inspect Btrfs filesystem space usage.",
+    match=["btrfs filesystem usage /", "btrfs filesystem df /"],
+    not_match=["btrfs filesystem resize max /"],
+)
+
+prefix_rule(
+    pattern=["flatpak", "remote-ls", "--updates", "flathub"],
+    decision="allow",
+    justification="List available Flathub updates.",
+    match=["flatpak remote-ls --updates flathub"],
+    not_match=["flatpak update"],
+)
+
+prefix_rule(
+    pattern=["flatpak", "search"],
+    decision="allow",
+    justification="Search Flatpak remotes without installing software.",
+    match=["flatpak search firefox"],
+    not_match=["flatpak install flathub org.mozilla.firefox"],
+)
+
+prefix_rule(
+    pattern=["gdbus", "introspect", "--session"],
+    decision="allow",
+    justification="Inspect services on the user session bus.",
+    match=[
+        "gdbus introspect --session --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus",
+    ],
+    not_match=[
+        "gdbus call --session --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus --method org.freedesktop.DBus.ListNames",
+    ],
+)
+
+prefix_rule(
+    pattern=["gpg", "--card-status"],
+    decision="allow",
+    justification="Inspect the attached OpenPGP card.",
+)
+
+prefix_rule(
+    pattern=["gpgconf", "--list-options", "scdaemon"],
+    decision="allow",
+    justification="Inspect scdaemon configuration options.",
+)
+
+prefix_rule(
+    pattern=["gpgconf", "--kill", "scdaemon"],
+    decision="allow",
+    justification="Restart a stuck scdaemon process.",
+)
+
+prefix_rule(
+    pattern=["iostat", "-xz"],
+    decision="allow",
+    justification="Inspect extended block-device utilization.",
+)
+
+prefix_rule(
+    pattern=["lsblk", "-o"],
+    decision="allow",
+    justification="Inspect selected block-device properties.",
+    match=["lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINTS"],
+    not_match=["lsblk --discard"],
+)
+
+prefix_rule(
+    pattern=["findmnt"],
+    decision="allow",
+    justification="Inspect mounted filesystems.",
+)
+
+prefix_rule(
+    pattern=["libinput", "list-devices"],
+    decision="allow",
+    justification="Inspect input devices.",
+)
+
+prefix_rule(
+    pattern=["journalctl", "--no-pager"],
+    decision="allow",
+    justification="Inspect journal entries without invoking an interactive pager.",
+    match=["journalctl --no-pager -u pipewire.service -n 100"],
+    not_match=["journalctl", "journalctl --pager-end"],
+)
+
+prefix_rule(
+    pattern=["loginctl", "--no-pager", "list-sessions", "--no-legend"],
+    decision="allow",
+    justification="List login sessions without invoking an interactive pager.",
+    match=["loginctl --no-pager list-sessions --no-legend"],
+    not_match=["loginctl terminate-session 3"],
+)
+
+prefix_rule(
+    pattern=["loginctl", "--no-pager", "session-status"],
+    decision="allow",
+    justification="Inspect a login session without invoking an interactive pager.",
+    match=["loginctl --no-pager session-status"],
+    not_match=["loginctl session-status"],
+)
+
+prefix_rule(
+    pattern=["ls"],
+    decision="allow",
+    justification="List directory entries without reading file contents.",
+)
+
+prefix_rule(
+    pattern=["lsusb"],
+    decision="allow",
+    justification="Inspect USB devices and descriptors.",
+)
+
+prefix_rule(
+    pattern=["npm", "view"],
+    decision="allow",
+    justification="Read package metadata without installing packages.",
+    match=["npm view react version"],
+    not_match=["npm install react"],
+)
+
+prefix_rule(
+    pattern=[
+        "pactl",
+        [
+            "stat",
+            "info",
+            "list",
+            "get-default-sink",
+            "get-default-source",
+            "get-sink-volume",
+            "get-source-volume",
+            "get-sink-mute",
+            "get-source-mute",
+        ],
+    ],
+    decision="allow",
+    justification="Inspect PulseAudio state without changing it or loading modules.",
+    match=["pactl info", "pactl list short sinks", "pactl get-default-sink"],
+    not_match=["pactl load-module module-ladspa-sink", "pactl set-sink-mute 0 toggle"],
+)
+
+prefix_rule(
+    pattern=["ps"],
+    decision="allow",
+    justification="Inspect process metadata.",
+)
+
+prefix_rule(
+    pattern=["systemctl", "--no-pager", ["list-timers", "status", "show", "cat"]],
+    decision="allow",
+    justification="Inspect systemd state without invoking an interactive pager.",
+    match=[
+        "systemctl --no-pager list-timers",
+        "systemctl --no-pager status pipewire.service",
+        "systemctl --no-pager show pipewire.service",
+        "systemctl --no-pager cat pipewire.service",
+    ],
+    not_match=[
+        "systemctl restart pipewire.service",
+        "systemctl --user restart pipewire-pulse.service",
+    ],
+)
+
+prefix_rule(
+    pattern=["systemd-inhibit", "--list", "--no-pager"],
+    decision="allow",
+    justification="List active inhibitor locks without invoking an interactive pager.",
+)
+
+prefix_rule(
+    pattern=["jj", "status", "--no-pager"],
+    decision="allow",
+    justification="Inspect repository status without invoking a configured pager or diff tool.",
+    match=["jj status --no-pager"],
+    not_match=["jj diff --tool sh", "jj show"],
+)
+
+prefix_rule(
+    pattern=["tailscale", "status"],
+    decision="allow",
+    justification="Inspect Tailscale connection status.",
+)
+
+prefix_rule(
+    pattern=["wpctl", ["status", "get-volume", "inspect"]],
+    decision="allow",
+    justification="Inspect WirePlumber state without changing it.",
+    match=["wpctl status", "wpctl get-volume @DEFAULT_AUDIO_SINK@", "wpctl inspect 42"],
+    not_match=["wpctl set-volume @DEFAULT_AUDIO_SINK@ 50%", "wpctl settings key value"],
+)
