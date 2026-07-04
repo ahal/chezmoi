@@ -11,6 +11,8 @@ from pathlib import Path
 DEVICE = "airscan:e0:Canon MF260 II Series"
 DEST = Path("/home/ahal/Documents/Scanned")
 SOURCES = ("Flatbed", "ADF", "ADF Duplex", "ADF Paged")
+RESOLUTION = "150"
+PDF_QUALITY = "65"
 
 
 def wait_for_enter_or_esc():
@@ -81,7 +83,7 @@ def main():
                         "--batch-count=1",
                         f"--batch-start={page_num}",
                         "--source=ADF",
-                        "--resolution", "150",
+                        "--resolution", RESOLUTION,
                     ],
                     cwd=workdir,
                 )
@@ -92,17 +94,18 @@ def main():
                     break
                 page_num += 1
         else:
-            subprocess.run(
-                [
-                    "scanimage",
-                    f"--device-name={DEVICE}",
-                    "--format", "tiff",
-                    "--batch",
-                    f"--source={scan_source}",
-                    "--resolution", "150",
-                ],
-                cwd=workdir,
-            )
+            cmd = [
+                "scanimage",
+                f"--device-name={DEVICE}",
+                "--format", "tiff",
+                f"--source={scan_source}",
+                "--resolution", RESOLUTION,
+            ]
+            if scan_source == "Flatbed":
+                cmd.append(f"--output-file={workdir / 'out0001.tif'}")
+            else:
+                cmd.append("--batch=out%04d.tif")
+            subprocess.run(cmd, cwd=workdir, check=True)
         tifs = sorted(workdir.glob("*.tif"))
         if not tifs:
             sys.exit(
@@ -111,7 +114,18 @@ def main():
                 "  - ensure documents are loaded in the ADF\n"
                 "  - try --source Flatbed to test basic connectivity"
             )
-        subprocess.run(["magick", *tifs, workdir / fname], check=True)
+        subprocess.run(
+            [
+                "magick",
+                *tifs,
+                "-compress",
+                "JPEG",
+                "-quality",
+                PDF_QUALITY,
+                workdir / fname,
+            ],
+            check=True,
+        )
         shutil.move(workdir / fname, dest_path)
 
 
