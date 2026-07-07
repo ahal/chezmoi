@@ -11,5 +11,16 @@
     "additionalDirectories": [
       "/tmp"
     ]
-  }
+  }{{ if .enable_mozilla }},
+  "extraKnownMarketplaces": {
+    "internal-aidev-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "mozilla/internal-aidev-plugins"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "mozdata@internal-aidev-plugins": true
+  }{{ end }}
 }

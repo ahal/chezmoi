@@ -4,4 +4,7 @@ cat
 exit 0
 {{ end -}}
 
-jq '. + {"mcpServers": ((.mcpServers // {}) + {"moz": {"type": "http", "url": "https://mcp-dev.moz.tools/mcp"}})}'
+jq '. + {"mcpServers": ((.mcpServers // {}) + {
+  "moz": {"type": "http", "url": "https://mcp-dev.moz.tools/mcp"},
+  "bigquery": {"type": "stdio", "command": "{{ .chezmoi.homeDir }}/.local/bin/toolbox", "args": ["--tools-file", "{{ .chezmoi.homeDir }}/.config/genai-toolbox/mozdata-tools.yaml", "--stdio"]}
+})}'

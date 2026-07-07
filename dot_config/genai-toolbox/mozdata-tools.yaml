@@ -1,0 +1,66 @@
+sources:
+  bigquery-source:
+    kind: "bigquery"
+    project: mozdata
+    location: US
+    writeMode: "blocked"
+    maxQueryResultRows: ${BIGQUERY_MAX_QUERY_RESULT_ROWS:100}
+
+  bigquery-writable-source:
+    kind: "bigquery"
+    project: mozdata
+    location: US
+    writeMode: "allowed"
+    allowedDatasets:
+      - analysis
+      - tmp
+    maxQueryResultRows: ${BIGQUERY_MAX_QUERY_RESULT_ROWS:100}
+
+tools:
+  execute_sql:
+    kind: bigquery-execute-sql
+    source: bigquery-source
+    description: >
+      Execute a read-only SQL query against Mozilla's BigQuery data warehouse.
+      IMPORTANT: Always include partition filters (submission_date or
+      DATE(submission_timestamp)) and use sample_id = 0 for development queries.
+      Prefer querying mozdata project tables.
+
+  execute_write_sql:
+    kind: bigquery-execute-sql
+    source: bigquery-writable-source
+    description: >
+      Execute a SQL statement that writes to BigQuery (CREATE TABLE, INSERT, etc.).
+      RESTRICTED: Only writes to mozdata.analysis and mozdata.tmp datasets are allowed.
+      All tables referenced in the query (both read and write) must be in these datasets.
+      For queries that read from other datasets, use execute_sql first, then write results here.
+      For read-only queries, use execute_sql instead.
+
+  list_dataset_ids:
+    kind: bigquery-list-dataset-ids
+    source: bigquery-source
+    description: List available BigQuery datasets.
+
+  list_table_ids:
+    kind: bigquery-list-table-ids
+    source: bigquery-source
+    description: List tables in a BigQuery dataset.
+
+  get_table_info:
+    kind: bigquery-get-table-info
+    source: bigquery-source
+    description: Get table schema and metadata.
+
+  get_dataset_info:
+    kind: bigquery-get-dataset-info
+    source: bigquery-source
+    description: Get dataset metadata.
+
+toolsets:
+  mozilla_bigquery:
+    - execute_sql
+    - execute_write_sql
+    - list_dataset_ids
+    - list_table_ids
+    - get_table_info
+    - get_dataset_info
