@@ -14,6 +14,8 @@ sudo dnf install -y \
   mangohud \
 {{ end -}}
   meld \
+  openssl-devel \
+  pkgconf-pkg-config \
   python3-devel \
   tmux \
   zsh
@@ -30,7 +32,9 @@ sudo apt-get install -y \
 {{ if not .enable_mozilla -}}
   mangohud \
 {{ end -}}
+  libssl-dev \
   meld \
+  pkg-config \
   scdaemon \
   tmux \
   zsh
