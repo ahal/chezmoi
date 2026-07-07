@@ -8,5 +8,5 @@ mode = "file"
 [data]
   enable_mozilla = {{ promptBoolOnce . "enable_mozilla" "Enable Mozilla configuration" }}
   enable_watchman = {{ promptBoolOnce . "enable_watchman" "Enable Watchman" }}
-  llm_providers = {{ promptMultichoiceOnce . "llm_providers" "anthropic" (list "anthropic" "openai") | toJson }}
+  llm_providers = {{ promptMultichoiceOnce . "llm_providers" "Which LLM providers do you use" (list "anthropic" "openai") (list "anthropic") | toJson }}
   is_unraid_vm = {{ output "sh" "-c" "systemd-detect-virt 2>/dev/null | grep -q kvm && echo true || echo false" | trim | eq "true" }}
