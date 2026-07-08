@@ -21,3 +21,18 @@ cargo install \
   ripgrep \
   tealdeer \
   topgrade
+
+# lrv normally installs its agent skill files via a button click in its web
+# UI (POST /api/install-skill); copy them directly instead so they land on
+# every `chezmoi apply` without manual interaction.
+lrv_src=$(find "$HOME/.cargo/registry/src" -maxdepth 2 -type d -name 'lrv-*' 2>/dev/null | sort -V | tail -n1)
+if [ -n "$lrv_src" ] && [ -f "$lrv_src/src/skill.md" ]; then
+{{- if has "anthropic" .llm_providers }}
+  mkdir -p "$HOME/.claude/skills/lrv"
+  cp "$lrv_src/src/skill.md" "$HOME/.claude/skills/lrv/SKILL.md"
+{{- end }}
+{{- if has "openai" .llm_providers }}
+  mkdir -p "$HOME/.codex/skills/lrv"
+  cp "$lrv_src/src/skill.md" "$HOME/.codex/skills/lrv/SKILL.md"
+{{- end }}
+fi
