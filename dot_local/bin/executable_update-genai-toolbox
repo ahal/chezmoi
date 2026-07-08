@@ -4,8 +4,8 @@ set -euo pipefail
 LATEST=$(curl -fsSL "https://api.github.com/repos/googleapis/genai-toolbox/releases/latest" | grep '"tag_name"' | sed 's/.*"\(v[^"]*\)".*/\1/')
 
 CURRENT=""
-if command -v toolbox &> /dev/null; then
-  CURRENT=$(toolbox --version 2> /dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
+if command -v genai-toolbox &> /dev/null; then
+  CURRENT=$(genai-toolbox --version 2> /dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
 fi
 
 if [ "$CURRENT" = "$LATEST" ]; then
@@ -22,7 +22,7 @@ OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 
 mkdir -p ~/.local/bin
 curl -fsSL "https://storage.googleapis.com/mcp-toolbox-for-databases/${LATEST}/${OS}/${ARCH}/toolbox" \
-  -o ~/.local/bin/toolbox
-chmod +x ~/.local/bin/toolbox
+  -o ~/.local/bin/genai-toolbox
+chmod +x ~/.local/bin/genai-toolbox
 
 echo "Updated genai-toolbox: ${CURRENT:-none} -> $LATEST"
