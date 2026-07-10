@@ -1,0 +1,2 @@
+[commands]
+"uv tools" = "uv tool upgrade --all"

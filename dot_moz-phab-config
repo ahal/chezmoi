@@ -1,6 +1,7 @@
 [ui]
 no_ansi = False
 hyperlinks = True
+open_browser = False
 
 [vcs]
 safe_mode = False
@@ -28,8 +29,8 @@ branch_name_template = phab-D{rev_id}
 create_commit = True
 
 [updater]
-self_last_check = 1776792009
-self_auto_update = True
+self_last_check = -1
+self_auto_update = False
 get_pre_releases = False
 arc_last_check = 0
 
