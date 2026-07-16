@@ -3,3 +3,5 @@ is_employee = true
 is_enabled = true
 is_set_up = true
 
+[try]
+gitbacking = true
