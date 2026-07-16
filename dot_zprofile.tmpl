@@ -6,11 +6,11 @@ path=(
     ~/.cargo/bin
     ~/.config/fzf/bin
     ~/.config/npm/bin
+{{- if .enable_mozilla }}
+    ~/.mozbuild/git-cinnabar
+{{- end }}
     ~/go/bin
     ~/opt/neovim/bin
-{{ if .enable_mozilla -}}
-    ~/.mozbuild/git-cinnabar
-{{ end -}}
     /var/lib/flatpak/exports/bin
     $path
 )
