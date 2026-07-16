@@ -8,6 +8,9 @@ path=(
     ~/.config/npm/bin
     ~/go/bin
     ~/opt/neovim/bin
+{{ if .enable_mozilla -}}
+    ~/.mozbuild/git-cinnabar
+{{ end -}}
     /var/lib/flatpak/exports/bin
     $path
 )
