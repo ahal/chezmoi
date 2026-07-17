@@ -1,8 +1,6 @@
 {
-  "theme": "dark",
-  "model": "opusplan",
   "env": {
-    "CLAUDE_CODE_DISABLE_MOUSE_CLICKS": "1"
+    "CLAUDE_CODE_DISABLE_MOUSE_CLICKS": "0"
   },
   "permissions": {
     "allow": [
@@ -14,7 +12,14 @@
     "additionalDirectories": [
       "/tmp"
     ]
-  }{{ if .enable_mozilla }},
+  },
+  "model": "opusplan",
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true
+    {{- if .enable_mozilla }},
+    "mozdata@internal-aidev-plugins": true
+    {{ end }}
+  },
   "extraKnownMarketplaces": {
     "internal-aidev-plugins": {
       "source": {
@@ -23,7 +28,5 @@
       }
     }
   },
-  "enabledPlugins": {
-    "mozdata@internal-aidev-plugins": true
-  }{{ end }}
+  "theme": "dark"
 }
