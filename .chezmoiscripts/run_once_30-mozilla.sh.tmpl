@@ -3,3 +3,7 @@
 set -euo pipefail
 
 uv tool install MozPhab
+
+export PATH="$HOME/.local/bin:$PATH"
+eval "$(fnm env --shell bash)"
+npm install -g @firefox-devtools/profiler-cli
