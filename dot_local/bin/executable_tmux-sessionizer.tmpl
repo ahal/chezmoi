@@ -17,6 +17,7 @@ fi
 
 tmux_running=$(pgrep tmux)
 selected_root="$root_dir/$selected"
+selected=$(echo "$selected" | tr '.:' '__')
 
 if [[ -z $TMUX ]] && [[ -z $tmux_running ]]; then
     tmux new-session -ds "$selected" -c "$selected_root"
