@@ -10,7 +10,7 @@ from pathlib import Path
 
 DEVICE = "airscan:e0:Canon MF260 II Series"
 DEST = Path("/home/ahal/Documents/Scanned")
-SOURCES = ("Flatbed", "ADF", "ADF Duplex", "ADF Paged")
+SOURCES = ("Flatbed", "Flatbed Paged", "ADF", "ADF Duplex", "ADF Paged")
 RESOLUTION = "150"
 PDF_QUALITY = "65"
 
@@ -71,22 +71,28 @@ def main():
 
     with tempfile.TemporaryDirectory() as workdir:
         workdir = Path(workdir)
-        if scan_source == "ADF Paged":
+        if scan_source in ("Flatbed Paged", "ADF Paged"):
             page_num = 1
+            source = scan_source.removesuffix(" Paged")
             while True:
-                result = subprocess.run(
-                    [
-                        "scanimage",
-                        f"--device-name={DEVICE}",
-                        "--format", "tiff",
-                        "--batch=out%04d.tif",
-                        "--batch-count=1",
-                        f"--batch-start={page_num}",
-                        "--source=ADF",
-                        "--resolution", RESOLUTION,
-                    ],
-                    cwd=workdir,
-                )
+                cmd = [
+                    "scanimage",
+                    f"--device-name={DEVICE}",
+                    "--format", "tiff",
+                    f"--source={source}",
+                    "--resolution", RESOLUTION,
+                ]
+                if source == "Flatbed":
+                    cmd.append(f"--output-file={workdir / f'out{page_num:04d}.tif'}")
+                else:
+                    cmd.extend(
+                        [
+                            "--batch=out%04d.tif",
+                            "--batch-count=1",
+                            f"--batch-start={page_num}",
+                        ]
+                    )
+                result = subprocess.run(cmd, cwd=workdir)
                 if result.returncode != 0:
                     sys.exit(f"error: scan failed on page {page_num}")
                 print(f"Page {page_num} scanned.  [Enter] next page  [Esc] save and exit")
