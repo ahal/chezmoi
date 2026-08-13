@@ -1,16 +1,15 @@
 ---
 name: task-debugger
-description: Debug and fix Taskcluster task failures
+description: Debug and fix Taskcluster task failures. Trigger on "debug task", a bare Taskcluster task ID, or a Taskcluster/Treeherder task URL/log link.
 ---
 
 ## Setup
 
-**Taskcluster CLI:**
+**Taskcluster CLI:** Assume `taskcluster` is already installed and on PATH — do not verify this up front. Only if a command fails with a "not found"/"command not found" error, install it from https://github.com/taskcluster/taskcluster/releases/latest/ and retry.
+
 ```bash
-taskcluster version  # check if installed
 export TASKCLUSTER_ROOT_URL=https://firefox-ci-tc.services.mozilla.com
 ```
-If not installed: https://github.com/taskcluster/taskcluster/releases/latest/
 
 **Commands:**
 - `taskcluster task log <task-id>` - Get logs
