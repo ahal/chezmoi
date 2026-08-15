@@ -13,7 +13,12 @@ won't work, say it won't work and why.
 {{ if .is_unraid_vm -}}
 # Environment
 
-This system is a virtual machine running on an Unraid host. The Unraid host can be accessed via `ssh root@mediaserver.local`.
+The agent's shell is running inside a Fedora virtual machine, not directly on
+the Unraid host. Treat local commands, local files, packages, services, and
+devices as belonging to the Fedora VM unless told otherwise.
+
+The Fedora VM runs on an Unraid host. The Unraid host can be accessed via
+`ssh root@mediaserver.local`.
 
 {{ end -}}
 # VCS
