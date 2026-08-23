@@ -9,6 +9,10 @@ README.md
 .codex
 {{ end }}
 
+{{ if not .is_unraid_vm }}
+.config/wireplumber
+{{ end }}
+
 {{ if not .enable_mozilla }}
 .mozbuild
 .mozconfigs
