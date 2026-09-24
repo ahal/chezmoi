@@ -18,6 +18,7 @@ auto_submit = True
 always_blocking = True
 warn_untracked = True
 ai_review = False
+review_queue_reminder_frequency = 0
 
 [patch]
 apply_to = base
