@@ -23,8 +23,8 @@ The Fedora VM runs on an Unraid host. The Unraid host can be accessed via
 {{ end -}}
 # VCS
 
-* If `.jj` is preset at the top of the repo, use `jj` and never use git, or we'll
-make a mess.
+* Always assume repositories use jj and never use git or we'll make a mess. Only if
+you get an error that it's not a jj repository can you fall back to git.
 * Never create new commits, leave changes in the working directory instead.
 
 # Style
