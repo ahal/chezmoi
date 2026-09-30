@@ -1,10 +1,13 @@
 #!/bin/bash
-{{ if not .enable_mozilla -}}
-cat
-exit 0
-{{ end -}}
+{{- $workspaces := printf "%s/.local/share/review-queue/workspaces" .chezmoi.homeDir }}
+{{- $dev := printf "%s/dev" .chezmoi.homeDir }}
 
-jq '. + {"mcpServers": ((.mcpServers // {}) + {
+# Trust ~/dev and review-queue's workspaces dir (Claude Code honors trust set on a parent directory).
+jq '.projects["{{ $dev }}"].hasTrustDialogAccepted = true
+| .projects["{{ $workspaces }}"].hasTrustDialogAccepted = true
+{{- if .enable_mozilla }}
+| . + {"mcpServers": ((.mcpServers // {}) + {
   "moz": {"type": "http", "url": "https://mcp-dev.moz.tools/mcp"},
   "bigquery": {"type": "stdio", "command": "{{ .chezmoi.homeDir }}/.local/bin/genai-toolbox", "args": ["--tools-file", "{{ .chezmoi.homeDir }}/.config/genai-toolbox/mozdata-tools.yaml", "--stdio"]}
-})}'
+})}
+{{- end }}'

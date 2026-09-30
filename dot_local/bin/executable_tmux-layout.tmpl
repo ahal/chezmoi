@@ -2,6 +2,8 @@
 
 session=${1:-$(tmux display-message -p '#S')}
 dir=${2:-$(tmux display-message -p -t "$session:0.0" '#{pane_current_path}')}
+# Optional, already shell-quoted arguments for the LLM command, e.g. "'some prompt'"
+llm_args=${3:+ $3}
 
 # Kill all panes except the first
 while tmux kill-pane -t "$session:0.1" 2>/dev/null; do :; done
@@ -21,7 +23,7 @@ tmux split-window -t "$session:0.1" -v -c "$dir"
 {{ end -}}
 {{ end -}}
 {{ if $llm_command -}}
-tmux send-keys -t "$session:0.1" '{{ $llm_command }}' Enter
+tmux send-keys -t "$session:0.1" '{{ $llm_command }}'"$llm_args" Enter
 {{ end -}}
 tmux select-pane -t "$session:0.0"
 tmux send-keys -t "$session:0.0" 'nvim' Enter

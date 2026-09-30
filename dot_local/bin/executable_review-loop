@@ -1,0 +1,377 @@
+#!/usr/bin/env python3
+"""LLM-assisted review loop around lrv.
+
+1. Claude reviews a commit series and writes lrv review notes.
+2. Existing Phabricator / GitHub PR comments are pulled in.
+3. lrv opens with the whole series; you add your own comments and submit.
+4. Your comments plus the LLM notes you left queued are posted to the
+   Phabricator revisions or the GitHub PR.
+"""
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import urllib.parse
+import urllib.request
+from pathlib import Path
+
+DEFAULT_REVSET = "(trunk()..@) ~ empty()"
+PHAB_URL = "https://phabricator.services.mozilla.com"
+PHAB_REV_RE = re.compile(r"^Differential Revision:\s*\S*/D(\d+)\s*$", re.M)
+
+REVIEW_SCHEMA = {
+    "type": "object",
+    "required": ["notes"],
+    "properties": {
+        "notes": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["commit_idx", "file", "line", "side", "body"],
+                "properties": {
+                    "commit_idx": {"type": "integer"},
+                    "file": {"type": "string"},
+                    "line": {"type": "integer"},
+                    "side": {"enum": ["new", "old"]},
+                    "body": {"type": "string"},
+                },
+            },
+        }
+    },
+}
+
+REVIEW_PROMPT = """\
+Review this series of commits. Commits are listed oldest first, with the
+zero-based index you must use as `commit_idx`:
+
+{commits}
+
+Inspect each commit with `{show}`. Only report real problems: bugs,
+regressions, missing error handling, security issues, missing tests, unclear
+or misleading commit messages. No praise, no style nits a linter would catch,
+no summaries. If a commit is fine, say nothing about it.
+
+Each note needs:
+- file: the exact path as it appears in the diff, or "(commit)" for a comment
+  on the commit message (then line is 1, side "new")
+- line: line number in that commit's version of the file (side "new") or the
+  parent's version (side "old")
+- body: a concise, actionable comment
+
+Return an empty notes array if you find nothing.
+"""
+
+
+def run(cmd, **kw):
+    return subprocess.run(cmd, check=True, text=True, capture_output=True, **kw).stdout
+
+
+def die(msg):
+    sys.exit(f"review-loop: {msg}")
+
+
+def _up(name):
+    p = Path.cwd()
+    return any((d / name).exists() for d in [p, *p.parents])
+
+
+def get_commits(revset):
+    """Return [{idx, hash, message, bookmarks}] oldest first."""
+    if _up(".jj"):
+        tmpl = 'commit_id ++ "\\x1f" ++ bookmarks ++ "\\x1f" ++ description ++ "\\x1e"'
+        out = run(["jj", "log", "--no-graph", "--reversed", "-r", revset, "-T", tmpl])
+        rows = [r for r in out.split("\x1e") if r.strip()]
+        commits = []
+        for row in rows:
+            h, bm, msg = row.strip("\n").split("\x1f", 2)
+            commits.append(
+                {"hash": h.strip(), "message": msg, "bookmarks": bm.replace("*", "").split()}
+            )
+    else:
+        hashes = run(["git", "rev-list", "--reverse", revset]).split()
+        branch = run(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip()
+        commits = [
+            {
+                "hash": h,
+                "message": run(["git", "log", "-1", "--format=%B", h]),
+                "bookmarks": [branch] if h == hashes[-1] else [],
+            }
+            for h in hashes
+        ]
+    for i, c in enumerate(commits):
+        c["idx"] = i
+    return commits
+
+
+def phab_token():
+    if os.environ.get("PHABRICATOR_API_KEY"):
+        return os.environ["PHABRICATOR_API_KEY"]
+    if os.environ.get("PHABRICATOR_TOKEN"):
+        return os.environ["PHABRICATOR_TOKEN"]
+    try:
+        hosts = json.loads((Path.home() / ".arcrc").read_text())["hosts"]
+        for host, cfg in hosts.items():
+            if "phabricator.services.mozilla.com" in host:
+                return cfg["token"]
+    except (OSError, KeyError, ValueError):
+        pass
+    return None
+
+
+def detect_target(commits, forced, pr):
+    revs = [PHAB_REV_RE.search(c["message"]) for c in commits]
+    c_revs = [m.group(1) if m else None for m in revs]
+    if forced == "phabricator" or (forced == "auto" and any(c_revs)):
+        if not all(c_revs):
+            die("target is phabricator but not every commit has a Differential Revision")
+        return "phabricator", {"revs": c_revs}
+    if pr is None:
+        for c in reversed(commits):
+            for bm in c["bookmarks"]:
+                out = run(
+                    ["gh", "pr", "list", "--head", bm, "--json", "number", "--jq", ".[0].number"]
+                ).strip()
+                if out:
+                    pr = int(out)
+                    break
+            if pr:
+                break
+    if pr is None:
+        die("no Differential Revision in commits and no GitHub PR found; use --pr or --no-remote")
+    return "github", {"pr": pr}
+
+
+def fetch_github_comments(pr, dest):
+    out = run(["gh", "api", "--paginate", "--slurp", f"repos/{{owner}}/{{repo}}/pulls/{pr}/comments"])
+    flat = [c for page in json.loads(out) for c in page]
+    dest.write_text(json.dumps(flat))
+    return flat
+
+
+def llm_review(commits, revset, model, dest):
+    listing = "\n".join(
+        f"{c['idx']}: {c['hash'][:12]} {c['message'].splitlines()[0] if c['message'].strip() else '(no description)'}"
+        for c in commits
+    )
+    vcs = "jj show --git -r <hash>" if _up(".jj") else "git show <hash>"
+    cmd = [
+        "claude", "-p",
+        "--output-format", "json",
+        "--json-schema", json.dumps(REVIEW_SCHEMA),
+        "--no-session-persistence",
+        "--tools", "Read,Grep,Glob,Bash",
+        "--allowedTools", "Read,Grep,Glob,Bash(jj show:*),Bash(jj diff:*),Bash(jj log:*),Bash(git show:*),Bash(git diff:*),Bash(git log:*)",
+    ]
+    if model:
+        cmd += ["--model", model]
+    cmd.append(REVIEW_PROMPT.format(commits=listing, show=vcs))
+    print("review-loop: running Claude review...", file=sys.stderr)
+    result = json.loads(run(cmd))
+    data = result.get("structured_output")
+    if data is None:
+        data = json.loads(result["result"])
+    notes = []
+    for n in data["notes"]:
+        notes.append({**n, "author": "claude"})
+    dest.write_text(json.dumps(notes, indent=2))
+    run(["lrv", "--validate-review-notes", str(dest)])
+    print(f"review-loop: {len(notes)} LLM notes -> {dest}", file=sys.stderr)
+
+
+def launch_lrv(revset, notes, target, info, gh_file, args):
+    cmd = ["lrv", "--series", revset, "--format", "json", "--review-notes-file", str(notes)]
+    env = dict(os.environ)
+    if target == "github" and gh_file:
+        cmd += ["--github-pr-comments", str(gh_file)]
+    elif target == "phabricator":
+        token = phab_token()
+        if token:
+            env["PHABRICATOR_API_KEY"] = token
+            for r in info["revs"]:
+                cmd += ["--phab-revision", f"D{r}"]
+        else:
+            print("review-loop: no Phabricator token, skipping remote comments", file=sys.stderr)
+    if args.no_open:
+        cmd.append("--no-open")
+    if args.title:
+        cmd += ["--title", args.title]
+    print("review-loop: launching lrv; submit the review in the browser to continue", file=sys.stderr)
+    proc = subprocess.run(cmd, env=env, text=True, stdout=subprocess.PIPE)
+    if proc.returncode != 0:
+        die(f"lrv exited with {proc.returncode}")
+    # lrv logs a tracing line to stdout before the JSON document.
+    start = re.search(r"^\{", proc.stdout, re.M)
+    if not start:
+        die("lrv produced no review output")
+    return json.loads(proc.stdout[start.start():])
+
+
+def split_comments(comments):
+    inline = [c for c in comments if c.get("file") != "(commit)"]
+    general = [c for c in comments if c.get("file") == "(commit)"]
+    return inline, general
+
+
+def gh_payload(commit, comments, overall):
+    inline, general = split_comments(comments)
+    body = "\n\n".join([*([overall] if overall else []), *(c["body"] for c in general)])
+    api_comments = []
+    for c in inline:
+        entry = {
+            "path": c["file"],
+            "line": c["line"],
+            "side": "LEFT" if c.get("side") == "old" else "RIGHT",
+            "body": c["body"],
+        }
+        if c.get("start_line") and c["start_line"] != c["line"]:
+            entry["start_line"] = c["start_line"]
+            entry["start_side"] = entry["side"]
+        api_comments.append(entry)
+    return {
+        "commit_id": commit["commit_hash"],
+        "event": "COMMENT",
+        "body": body,
+        "comments": api_comments,
+    }
+
+
+def gh_post(pr, payload):
+    return subprocess.run(
+        ["gh", "api", "-X", "POST", f"repos/{{owner}}/{{repo}}/pulls/{pr}/reviews", "--input", "-"],
+        input=json.dumps(payload), text=True, capture_output=True,
+    )
+
+
+def submit_github(pr, result, dry_run):
+    commits = [c for c in result["commits"] if c["comments"]]
+    overall = result.get("overall_comment")
+    if not commits and overall:
+        commits = [result["commits"][-1]]
+    for i, commit in enumerate(commits):
+        payload = gh_payload(commit, commit["comments"], overall if i == 0 else None)
+        print(f"review-loop: GitHub review on {commit['commit_hash'][:12]}: "
+              f"{len(payload['comments'])} inline comments", file=sys.stderr)
+        if dry_run:
+            print(json.dumps(payload, indent=2))
+            continue
+        proc = gh_post(pr, payload)
+        if proc.returncode != 0:
+            # Lines not in the PR diff are rejected wholesale; fold them into the body.
+            print(f"review-loop: inline post failed ({proc.stderr.strip()}); "
+                  "retrying with comments in the review body", file=sys.stderr)
+            folded = "\n\n".join(
+                f"`{c['path']}:{c['line']}`\n{c['body']}" for c in payload["comments"]
+            )
+            payload["body"] = "\n\n".join(p for p in (payload["body"], folded) if p)
+            payload["comments"] = []
+            proc = gh_post(pr, payload)
+            if proc.returncode != 0:
+                die(f"GitHub submission failed: {proc.stderr.strip()}")
+
+
+def conduit(method, token, **params):
+    params["__conduit__"] = {"token": token}
+    data = urllib.parse.urlencode({"params": json.dumps(params), "output": "json"}).encode()
+    with urllib.request.urlopen(f"{PHAB_URL}/api/{method}", data) as resp:
+        out = json.load(resp)
+    if out.get("error_code"):
+        die(f"Phabricator {method}: {out['error_info']}")
+    return out["result"]
+
+
+def submit_phabricator(revs, result, dry_run):
+    token = phab_token()
+    if not token and not dry_run:
+        die("no Phabricator API token (set PHABRICATOR_API_KEY or use ~/.arcrc)")
+    overall = result.get("overall_comment")
+    commits = result["commits"]
+    last_with_comments = max((c["idx"] for c in commits if c["comments"]), default=None)
+    for c in commits:
+        inline, general = split_comments(c["comments"])
+        comment = "\n\n".join(
+            [*([overall] if overall and c["idx"] == last_with_comments else []),
+             *(g["body"] for g in general)]
+        )
+        if not inline and not comment:
+            continue
+        rev = revs[c["idx"]]
+        print(f"review-loop: Phabricator D{rev}: {len(inline)} inline comments", file=sys.stderr)
+        if dry_run:
+            print(json.dumps({"revision": f"D{rev}", "inline": inline, "comment": comment}, indent=2))
+            continue
+        for n in inline:
+            conduit(
+                "differential.createinline", token,
+                revisionID=int(rev), filePath=n["file"],
+                isNewFile=n.get("side") != "old", lineNumber=n["line"],
+                lineLength=max(0, n.get("start_line") and n["line"] - n["start_line"] or 0),
+                content=n["body"],
+            )
+        # Publishing a comment transaction also publishes the pending inlines.
+        conduit(
+            "differential.revision.edit", token,
+            objectIdentifier=f"D{rev}",
+            transactions=[{"type": "comment", "value": comment or " "}],
+        )
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("-r", "--revset", default=DEFAULT_REVSET, help="series to review (default: %(default)s)")
+    p.add_argument("--target", choices=["auto", "github", "phabricator"], default="auto")
+    p.add_argument("--pr", type=int, help="GitHub PR number (default: detect from bookmark)")
+    p.add_argument("--notes", type=Path, help="use this notes file instead of running Claude")
+    p.add_argument("--no-llm", action="store_true", help="skip the Claude review")
+    p.add_argument("--no-remote", action="store_true", help="don't pull or post remote comments")
+    p.add_argument("--model", help="model for the Claude review")
+    p.add_argument("--title")
+    p.add_argument("--no-open", action="store_true", help="don't open the browser")
+    p.add_argument("--dry-run", action="store_true", help="print what would be submitted")
+    p.add_argument("--workdir", type=Path, help="directory for notes and comment files")
+    args = p.parse_args()
+
+    commits = get_commits(args.revset)
+    if not commits:
+        die(f"no commits in {args.revset}")
+    state = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "review-loop"
+    state.mkdir(parents=True, exist_ok=True)
+    work = args.workdir or Path(tempfile.mkdtemp(prefix=f"{Path.cwd().name}-", dir=state))
+    work.mkdir(parents=True, exist_ok=True)
+    print(f"review-loop: {len(commits)} commits, workdir {work}", file=sys.stderr)
+
+    notes = args.notes or work / "notes.json"
+    if args.notes:
+        pass
+    elif args.no_llm:
+        notes.write_text("[]")
+    else:
+        llm_review(commits, args.revset, args.model, notes)
+
+    target = info = gh_file = None
+    if not args.no_remote:
+        target, info = detect_target(commits, args.target, args.pr)
+        print(f"review-loop: target {target} {info}", file=sys.stderr)
+        if target == "github":
+            gh_file = work / "gh-comments.json"
+            fetch_github_comments(info["pr"], gh_file)
+
+    result = launch_lrv(args.revset, notes, target, info, gh_file, args)
+    (work / "submission.json").write_text(json.dumps(result, indent=2))
+
+    if not any(c["comments"] for c in result["commits"]) and not result.get("overall_comment"):
+        print("review-loop: nothing to submit", file=sys.stderr)
+        return
+    if target == "github":
+        submit_github(info["pr"], result, args.dry_run)
+    elif target == "phabricator":
+        submit_phabricator(info["revs"], result, args.dry_run)
+    else:
+        print(json.dumps(result, indent=2))
+
+
+if __name__ == "__main__":
+    main()
