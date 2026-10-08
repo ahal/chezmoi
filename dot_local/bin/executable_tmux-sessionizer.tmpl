@@ -3,6 +3,12 @@
 PATH="$HOME/.config/fzf/bin:$HOME/.local/bin:$PATH"
 tmux_layout="$HOME/.local/bin/tmux-layout"
 
+if [[ ${1:-} == "--filter-sessions" ]]; then
+    selected=$(tmux list-sessions -F '#S' 2> /dev/null | grep -E -- "${2:-.}" | fzf)
+    [[ -n $selected ]] && tmux switch-client -t "=$selected"
+    exit 0
+fi
+
 if [[ $# -eq 1 ]]; then
     root_dir=~
     selected=$1

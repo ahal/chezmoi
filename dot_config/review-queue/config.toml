@@ -1,0 +1,26 @@
+open_command = '''
+s="rq-$(printf %s "$RQ_REVIEW" | tr './:' '___')"
+layout="$HOME/.local/bin/tmux-layout"
+if [ -z "$TMUX" ]; then
+  tmux has-session -t "=$s" 2>/dev/null || {
+    tmux new-session -ds "$s" -c "$RQ_WORKSPACE"
+    "$layout" "$s" "$RQ_WORKSPACE"
+  }
+  exec tmux attach-session -t "=$s"
+fi
+tmux has-session -t "=$s" 2>/dev/null || {
+  tmux new-session -ds "$s" -c "$RQ_WORKSPACE"
+  tmux set-option -t "$s" detach-on-destroy previous
+  "$layout" "$s" "$RQ_WORKSPACE"
+}
+tmux switch-client -t "=$s"
+while tmux has-session -t "=$s" 2>/dev/null; do sleep 1; done
+'''
+open_command_wait = false
+
+workdir = "~/dev"
+
+[source.moz-phab]
+url = "https://phabricator.services.mozilla.com"
+
+[source.github]
