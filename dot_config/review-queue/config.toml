@@ -1,5 +1,7 @@
 open_command = '''
-s="rq-$(printf %s "$RQ_REVIEW" | tr './:' '___')"
+summary=$(cd "$RQ_WORKSPACE" && { jj log --ignore-working-copy --no-graph -r '@-' -T 'description.first_line()' 2>/dev/null || git log -1 --format=%s 2>/dev/null; })
+summary=$(printf %s "$summary" | sed 's/ r[=?].*//' | cut -c1-60)
+s="rq-$(printf %s "$RQ_REVIEW${summary:+ | $summary}" | tr './:' '___')"
 layout="$HOME/.local/bin/tmux-layout"
 if [ -z "$TMUX" ]; then
   tmux has-session -t "=$s" 2>/dev/null || {
