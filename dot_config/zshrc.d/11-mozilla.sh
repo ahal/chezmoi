@@ -4,6 +4,8 @@ alias review="mach lint -o && moz-phab submit"
 alias w="TASKCLUSTER_ROOT_URL=https://firefox-ci-tc.services.mozilla.com watch-task"
 alias relduty='curl -s https://whattrainisitnow.com/api/release/duty/ | jq "last(to_entries[] | select(.key==\"$(curl -s https://whattrainisitnow.com/api/release/schedule/\?version=beta | jq -r .version | cut -d"." -f1)\") | .value)"'
 
+export MACH_SKIP_PATH_PERFORMANCE_CHECK=1
+
 function phabimport {
   wget https://phabricator.services.mozilla.com/${1}\?download\=true -qO - | hg import - --no-commit
 }
