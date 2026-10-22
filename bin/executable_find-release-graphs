@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+import argparse
+import json
+import sys
+import urllib.error
+import urllib.request
+from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
+
+TC_ROOT = "https://firefox-ci-tc.services.mozilla.com"
+SHIPIT_ROOT = "https://shipitapi-public.services.mozilla.com"
+STATUS_BATCH = 1000
+STATES = ["completed", "running", "pending", "unscheduled", "failed", "exception"]
+
+
+def get_json(url):
+    req = urllib.request.Request(url, headers={"User-Agent": "find-release-graphs"})
+    with urllib.request.urlopen(req) as resp:
+        return json.load(resp)
+
+
+def releases(status):
+    return get_json(f"{SHIPIT_ROOT}/releases?status={status}")
+
+
+def release_graphs(release):
+    for phase in release["phases"]:
+        if phase["skipped"] or not phase["actionTaskId"]:
+            continue
+        task_id = phase["actionTaskId"]
+        yield {
+            "task_id": task_id,
+            "created": phase["scheduled_at"],
+            "project": release["project"],
+            "revision": release["revision"],
+            "flavor": phase["name"],
+            "build_number": release["build_number"],
+            "version": release["version"],
+            "url": f"{TC_ROOT}/tasks/groups/{task_id}",
+        }
+
+
+def task_statuses(task_ids):
+    req = urllib.request.Request(
+        f"{TC_ROOT}/api/queue/v1/tasks/status",
+        data=json.dumps({"taskIds": task_ids}).encode(),
+        headers={"Content-Type": "application/json", "User-Agent": "find-release-graphs"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req) as resp:
+        return [s["status"] for s in json.load(resp)["statuses"]]
+
+
+def group_counts(group_id, pool):
+    try:
+        label_to_taskid = get_json(
+            f"{TC_ROOT}/api/queue/v1/task/{group_id}/artifacts/public/label-to-taskid.json"
+        )
+    except urllib.error.HTTPError as e:
+        # The action task hasn't created the graph yet.
+        if e.code == 404:
+            return Counter()
+        raise
+    task_ids = list(label_to_taskid.values())
+    batches = [task_ids[i : i + STATUS_BATCH] for i in range(0, len(task_ids), STATUS_BATCH)]
+    return Counter(
+        s["state"]
+        for statuses in pool.map(task_statuses, batches)
+        for s in statuses
+        if s["taskGroupId"] == group_id
+    )
+
+
+def find_graphs(projects, status, pool):
+    graphs = [
+        g
+        for release in releases(status)
+        if release["project"] in projects
+        for g in release_graphs(release)
+    ]
+    for g in graphs:
+        counts = group_counts(g["task_id"], pool)
+        g["counts"] = dict(counts)
+        g["total"] = sum(counts.values())
+    return graphs
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Find in-progress release-promotion task groups."
+    )
+    parser.add_argument(
+        "--project",
+        action="append",
+        dest="projects",
+        help="project to check (repeatable, default: mozilla-beta and mozilla-release)",
+    )
+    parser.add_argument(
+        "--status", default="scheduled", help="shipit release status (default: scheduled)"
+    )
+    parser.add_argument(
+        "--all", action="store_true", help="include graphs that are 100%% complete"
+    )
+    parser.add_argument("--json", action="store_true", help="output JSON")
+    args = parser.parse_args()
+    projects = args.projects or ["mozilla-beta", "mozilla-release"]
+
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        graphs = find_graphs(projects, args.status, pool)
+
+    if not args.all:
+        graphs = [
+            g
+            for g in graphs
+            if not g["total"] or g["counts"].get("completed", 0) < g["total"]
+        ]
+    graphs.sort(key=lambda g: g["created"], reverse=True)
+
+    if args.json:
+        print(json.dumps(graphs, indent=2))
+        return 0
+
+    if not graphs:
+        print("No in-progress release graphs found", file=sys.stderr)
+        return 0
+
+    for g in graphs:
+        created = datetime.fromisoformat(g["created"].replace("Z", "+00:00"))
+        created = created.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        version = f" {g['version']}" if g["version"] else ""
+        counts = " ".join(
+            f"{s}={g['counts'].get(s, 0)}"
+            for s in STATES
+            if s in ("completed", "running", "pending") or g["counts"].get(s)
+        )
+        print(
+            f"{created}  {g['project']:<16} {g['flavor']:<20} "
+            f"build{g['build_number']}{version}  {g['url']}\n"
+            f"    {counts} total={g['total']}"
+        )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
