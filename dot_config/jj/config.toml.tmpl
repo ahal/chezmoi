@@ -29,6 +29,7 @@ register-snapshot-trigger = false
 heads = ["log", "-r", "visible_heads() & mutable()", "-T", "builtin_log_compact", "--no-graph"]
 shortlog = ["log", "--limit=12"]
 tug = ["bookmark", "move", "--from", "heads(::@- & bookmarks())", "--to", "latest(::@ ~ empty())"]
+stack = ["util", "exec", "--", "moz-phab"]
 remote-add = ["util", "exec", "--", "bash", "-c", """
 if [ -z "$1" ] || [ -z "$2" ]; then
     echo "Usage: jj remote-add <name> <owner/slug>"
