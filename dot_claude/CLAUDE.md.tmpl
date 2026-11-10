@@ -1,1 +1,7 @@
-{{ includeTemplate ".chezmoitemplates/llm-instructions.md.tmpl" . -}}
+{{ includeTemplate ".chezmoitemplates/llm-instructions.md.tmpl" . }}
+
+# Codex Subagent
+
+* "Spawn a codex subagent" means running the `codex` CLI non-interactively in
+the background. Write the prompt to a file in /tmp and run:
+`codex exec -C <repo> -s workspace-write --add-dir ~/.cargo -o <result.md> - < <prompt-file>`
