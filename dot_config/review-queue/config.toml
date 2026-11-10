@@ -5,6 +5,7 @@ auto_workspace = true
 url = "https://phabricator.services.mozilla.com"
 
 [source.github]
+ignore_repos = ["mozilla/webservices-infra"]
 
 [targets.tmux]
 description = "Open in tmux session"
