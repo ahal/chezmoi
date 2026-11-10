@@ -1,4 +1,16 @@
-open_command = '''
+workdir = "~/dev"
+auto_workspace = true
+
+[source.moz-phab]
+url = "https://phabricator.services.mozilla.com"
+
+[source.github]
+
+[targets.tmux]
+description = "Open in tmux session"
+key = "t"
+wait = false
+command = '''
 summary=$(cd "$RQ_WORKSPACE" && { jj log --ignore-working-copy --no-graph -r '@-' -T 'description.first_line()' 2>/dev/null || git log -1 --format=%s 2>/dev/null; })
 summary=$(printf %s "$summary" | sed 's/ r[=?].*//' | cut -c1-60)
 s="rq-$(printf %s "$RQ_REVIEW${summary:+ | $summary}" | tr './:' '___')"
@@ -18,11 +30,13 @@ tmux has-session -t "=$s" 2>/dev/null || {
 tmux switch-client -t "=$s"
 while tmux has-session -t "=$s" 2>/dev/null; do sleep 1; done
 '''
-open_command_wait = false
 
-workdir = "~/dev"
-
-[source.moz-phab]
-url = "https://phabricator.services.mozilla.com"
-
-[source.github]
+[targets.lrv]
+description = "Open in lrv"
+command = '''
+# Bound by the workspace's pinned tip bookmark so the whole stack shows even
+# when the workspace is positioned on a lower revision.
+name="$(basename "$(dirname "$RQ_WORKSPACE")")/$(basename "$RQ_WORKSPACE")"
+lrv --series "trunk()..(@-:: & bookmarks(glob:\"review-queue/$name/*\"))"
+'''
+key = "v"
