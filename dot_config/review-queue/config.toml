@@ -1,3 +1,4 @@
+auto_clone = true
 auto_workspace = true
 
 [source.moz-phab]
