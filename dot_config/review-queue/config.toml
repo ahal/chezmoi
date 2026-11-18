@@ -1,4 +1,3 @@
-workdir = "~/dev"
 auto_workspace = true
 
 [source.moz-phab]
