@@ -3,6 +3,10 @@ typeset -U path
 path=(
     ~/bin
     ~/.local/bin
+{{- if .enable_mozilla }}
+	~/dev/lrv/target/debug
+	~/dev/review-queue/target/debug
+{{- end }}
     ~/.cargo/bin
     ~/.config/fzf/bin
     ~/.config/npm/bin
