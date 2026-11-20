@@ -1,0 +1,40 @@
+#!/bin/bash
+set -euo pipefail
+
+api_url="https://api.github.com/repos/taskcluster/taskcluster/releases/latest"
+latest=$(curl -fsSL "$api_url" | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p' | head -n1)
+
+if [ -z "$latest" ]; then
+  echo "Unable to determine latest taskcluster release" >&2
+  exit 1
+fi
+
+current=$(taskcluster version 2> /dev/null | sed -n 's/^taskcluster version \([^ ]*\).*/\1/p' | head -n1 || true)
+if [ "$current" = "$latest" ]; then
+  echo "taskcluster is already current: $current"
+  exit 0
+fi
+
+os=$(uname -s | tr '[:upper:]' '[:lower:]')
+arch=$(uname -m)
+case "$arch" in
+  x86_64) asset_arch="amd64" ;;
+  aarch64 | arm64) asset_arch="arm64" ;;
+  *)
+    echo "Unsupported architecture: $arch" >&2
+    exit 1
+    ;;
+esac
+
+tmpdir=$(mktemp -d)
+trap 'rm -rf "$tmpdir"' EXIT
+
+curl -fL \
+  "https://github.com/taskcluster/taskcluster/releases/download/v${latest}/taskcluster-${os}-${asset_arch}.tar.gz" \
+  -o "$tmpdir/taskcluster.tar.gz"
+tar -xzf "$tmpdir/taskcluster.tar.gz" -C "$tmpdir" taskcluster
+
+mkdir -p "$HOME/bin"
+install -m 755 "$tmpdir/taskcluster" "$HOME/bin/taskcluster"
+
+echo "Updated taskcluster: ${current:-none} -> $latest"
