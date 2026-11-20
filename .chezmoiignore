@@ -18,6 +18,7 @@ README.md
 .mozconfigs
 .config/python-bugzilla/bugzillarc
 .config/review-queue
+.local/bin/update-taskcluster
 {{ else }}
 .config/environment.d/mangohud.conf
 {{ if not (hasKey . "bugzilla_api_key") }}
