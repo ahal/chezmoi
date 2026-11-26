@@ -1,3 +1,5 @@
+export PNPM_HOME=~/.local/share/pnpm
+
 # path
 typeset -U path
 path=(
@@ -10,6 +12,7 @@ path=(
     ~/.cargo/bin
     ~/.config/fzf/bin
     ~/.config/npm/bin
+    ~/.local/share/pnpm/bin
 {{- if .enable_mozilla }}
     ~/.mozbuild/git-cinnabar
 {{- end }}
