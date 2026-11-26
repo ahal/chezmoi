@@ -1,3 +1,7 @@
+#!/bin/bash
+# Merge managed top-level keys over the existing settings.json. Unmanaged keys
+# (e.g. machine-specific "autoMode" written by Claude Code) are preserved.
+read -r -d '' managed <<'JSON'
 {
   "attribution": {
     "commit": "",
@@ -25,7 +29,7 @@
     "frontend-design@claude-plugins-official": true
     {{- if .enable_mozilla }},
     "mozdata@internal-aidev-plugins": true
-    {{ end }}
+    {{- end }}
   },
   "extraKnownMarketplaces": {
     "internal-aidev-plugins": {
@@ -37,3 +41,6 @@
   },
   "theme": "dark"
 }
+JSON
+
+jq -n --argjson managed "$managed" '(try input catch {}) + $managed'
