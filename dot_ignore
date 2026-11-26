@@ -23,3 +23,5 @@ node_modules
 /ty.toml
 .claude
 .pnpm-store
+
+**/.claude/settings.local.json

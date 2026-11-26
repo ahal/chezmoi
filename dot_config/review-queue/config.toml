@@ -37,7 +37,20 @@ description = "Open in lrv"
 command = '''
 # Bound by the workspace's pinned tip bookmark so the whole stack shows even
 # when the workspace is positioned on a lower revision.
-name="$(basename "$(dirname "$RQ_WORKSPACE")")/$(basename "$RQ_WORKSPACE")"
-lrv --series "trunk()..(@-:: & bookmarks(glob:\"review-queue/$name/*\"))"
+name="${RQ_WORKSPACE#*/review-queue/workspaces/}"
+if jj root --ignore-working-copy >/dev/null 2>&1; then
+  exec lrv --series "trunk()..(@-:: & bookmarks(glob:\"review-queue/$name/*\"))"
+fi
+# Git worktree: pins are refs/review-queue/<name>/<version>; take the newest one
+# descending from HEAD.
+tip=$(git for-each-ref --contains HEAD --sort=-committerdate --count=1 \
+  --format='%(objectname)' "refs/review-queue/$name/")
+exec lrv --series "origin/HEAD..${tip:-HEAD}"
 '''
 key = "v"
+
+[targets.workspace]
+description = "Open in workspace"
+command = 'tmux display-popup -E -B -w 100% -h 100% -d "$RQ_WORKSPACE"'
+key = "w"
+wait = false

@@ -5,3 +5,4 @@ is_set_up = true
 
 [try]
 gitbacking = true
+pushremote = git@github.com:mozilla-firefox/firefox-dev.git
