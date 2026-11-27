@@ -19,12 +19,14 @@ key = "5DD9F0C21329EA09A0A3F238F09CA0E91C1042EC"
 push = "ahal"
 fetch = ["origin", "ahal"]
 
+{{ if .enable_watchman -}}
 [fsmonitor]
 backend = "watchman"
 
 [fsmonitor.watchman]
 register-snapshot-trigger = false
 
+{{ end -}}
 [aliases]
 heads = ["log", "-r", "visible_heads() & mutable()", "-T", "builtin_log_compact", "--no-graph"]
 shortlog = ["log", "--limit=12"]
